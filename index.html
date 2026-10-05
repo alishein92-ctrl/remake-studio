@@ -203,6 +203,9 @@ async function api(path,body,method='POST'){
   if(!r.ok){const e=new Error((j.error&&(j.error.message||j.error))||j.message||txt.slice(0,200)||r.status);e.status=r.status;throw e}
   return j;
 }
+// réessaie automatiquement quand le serveur gratuit d'Agnes est saturé
+const __apiOrig=api;
+api=async function(path,body,method){for(let k=0;k<40;k++){try{return await __apiOrig(path,body,method)}catch(e){const m=String(e.message||'');if(/queue is full|reach upstream|retry later/i.test(m)){log('Serveur Agnes saturé, nouvel essai dans 45 s…');await sleep(45000);if(path==='/v1/videos')S.lastVideoCall=Date.now();continue}throw e}}throw new Error('Serveur Agnes saturé trop longtemps')};
 async function chat(text,images=[]){
   const content=[{type:'text',text},...images.map(u=>({type:'image_url',image_url:{url:u}}))];
   for(let k=0;k<4;k++){try{const j=await api('/v1/chat/completions',{model:CHAT_MODEL,messages:[{role:'user',content}],temperature:.6});
