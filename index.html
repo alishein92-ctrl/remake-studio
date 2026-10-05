@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RemakeStudio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0b0b12;--card:#151522;--line:#2a2a3d;--txt:#ececf4;--mut:#9a9ab3;--acc:#ff5a5f;--acc2:#ffb347;--ok:#3ecf8e;--err:#ff6b6b}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font-family:Inter,system-ui,sans-serif;line-height:1.5}
+header{padding:28px 16px 8px;text-align:center}
+h1{margin:0;font-size:clamp(28px,6vw,44px);font-weight:800;letter-spacing:-.02em}
+h1 span{background:linear-gradient(90deg,var(--acc),var(--acc2));-webkit-background-clip:text;background-clip:text;color:transparent}
+header p{color:var(--mut);margin:6px 0 0}
+main{max-width:980px;margin:0 auto;padding:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:16px}
+.card h2{margin:0 0 12px;font-size:18px;display:flex;gap:10px;align-items:center}
+.num{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,var(--acc),var(--acc2));color:#111;font-size:14px;font-weight:800}
+label{display:block;font-size:13px;color:var(--mut);margin:10px 0 4px}
+input[type=text],input[type=password],textarea,select{width:100%;background:#0f0f19;color:var(--txt);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:inherit}
+textarea{min-height:80px;resize:vertical}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.row>*{flex:1 1 180px}
+button{background:linear-gradient(135deg,var(--acc),var(--acc2));color:#111;border:0;border-radius:10px;padding:11px 16px;font:600 15px Inter,sans-serif;cursor:pointer}
+button.ghost{background:transparent;color:var(--txt);border:1px solid var(--line)}
+button:disabled{opacity:.45;cursor:not-allowed}
+.drop{border:2px dashed var(--line);border-radius:14px;padding:26px;text-align:center;color:var(--mut);cursor:pointer}
+.drop.on{border-color:var(--acc)}
+video{width:100%;border-radius:12px;background:#000;display:block}
+.small{font-size:13px;color:var(--mut)}
+.bar{height:8px;background:#0f0f19;border-radius:8px;overflow:hidden;margin-top:8px}
+.bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--acc),var(--acc2));transition:width .3s}
+.scenes{display:grid;gap:12px}
+.scene{border:1px solid var(--line);border-radius:12px;padding:12px;display:grid;grid-template-columns:150px 1fr;gap:12px}
+.scene .thumbs img{width:100%;border-radius:8px;display:block}
+.scene .meta{font-size:12px;color:var(--mut)}
+.scene textarea{min-height:90px;font-size:13px}
+.scene video{margin-top:8px}
+.badge{font-size:12px;padding:2px 8px;border-radius:20px;border:1px solid var(--line)}
+.badge.ok{color:var(--ok);border-color:var(--ok)}.badge.err{color:var(--err);border-color:var(--err)}.badge.run{color:var(--acc2);border-color:var(--acc2)}
+#log{font:12px ui-monospace,monospace;color:var(--mut);max-height:140px;overflow:auto;white-space:pre-wrap;background:#0f0f19;border-radius:10px;padding:8px;margin-top:10px}
+.stage{position:relative;aspect-ratio:16/9;background:#000;border-radius:12px;overflow:hidden}
+.stage video,.stage canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;border-radius:0}
+.hidden{display:none!important}
+@media(max-width:600px){.scene{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Remake<span>Studio</span></h1>
+  <p>Ta vieille vidéo → refaite en version humaine, scène par scène, avec les paroles d'origine.</p>
+</header>
+<main>
+
+<section class="card">
+  <h2><span class="num">1</span>Clé API Agnes AI</h2>
+  <div class="row">
+    <input id="key" type="password" placeholder="Colle ta clé API Agnes (gratuite)">
+    <button class="ghost" id="saveKey" style="flex:0 0 auto">Enregistrer</button>
+  </div>
+  <p class="small">La clé reste uniquement dans ton navigateur.</p>
+</section>
+
+<section class="card">
+  <h2><span class="num">2</span>Vidéo d'origine</h2>
+  <div class="drop" id="drop">📼 Clique ou glisse ta vidéo ici (MP4, MOV, WebM — idéal : 30 s à 2 min)</div>
+  <input type="file" id="file" accept="video/*" class="hidden">
+  <div id="srcWrap" class="hidden" style="margin-top:12px">
+    <video id="src" controls playsinline></video>
+    <p class="small" id="srcInfo"></p>
+  </div>
+</section>
+
+<section class="card">
+  <h2><span class="num">3</span>Réglages du remake</h2>
+  <label>Style visuel</label>
+  <select id="style">
+    <option value="photorealistic live-action film, real human actors, natural skin, cinematic lighting, 35mm">Film réaliste (vrais acteurs)</option>
+    <option value="photorealistic live-action French comedy sitcom, real human actors, bright warm lighting">Sitcom comique réaliste</option>
+    <option value="realistic modern TikTok-style vertical-friendly live-action sketch, real people, handheld camera">Sketch réaliste façon TikTok</option>
+    <option value="Pixar-like 3D animated film with expressive humanlike characters">Animation 3D (humains stylisés)</option>
+  </select>
+  <div class="row">
+    <div><label>Format</label>
+      <select id="ratio"><option>16:9</option><option>9:16</option><option>1:1</option></select></div>
+    <div><label>Qualité</label>
+      <select id="size"><option>720P</option><option>1080P</option></select></div>
+    <div><label>Bande son du remake</label>
+      <select id="audioMode"><option value="orig">Audio d'origine (garde les paroles)</option><option value="ai">Son généré par l'IA</option></select></div>
+  </div>
+  <label>Paroles / dialogues (facultatif mais conseillé — aide l'IA à comprendre qui parle)</label>
+  <textarea id="lyrics" placeholder="Ex : — Allô l'écho ? — L'écho... l'écho..."></textarea>
+  <label>Précisions sur les personnages (facultatif)</label>
+  <input id="castHint" type="text" placeholder="Ex : un petit garçon de 8 ans malin et un vieux montagnard moustachu">
+  <label><input type="checkbox" id="useKey" checked style="width:auto"> Créer d'abord une image clé humanisée pour chaque scène (plus fidèle, un peu plus long)</label>
+</section>
+
+<section class="card">
+  <h2><span class="num">4</span>Découpage & analyse</h2>
+  <button id="analyze" disabled>✂️ Découper en scènes et analyser</button>
+  <div class="bar"><i id="pa"></i></div>
+  <div id="cast" class="small" style="margin-top:10px"></div>
+  <div class="scenes" id="scenes" style="margin-top:12px"></div>
+</section>
+
+<section class="card">
+  <h2><span class="num">5</span>Génération des scènes</h2>
+  <div class="row">
+    <button id="gen" disabled>🎬 Générer toutes les scènes</button>
+    <button id="stop" class="ghost" disabled>⏹ Arrêter</button>
+  </div>
+  <p class="small">Version gratuite : environ 1 scène par minute. Une vidéo de 1 min 30 ≈ 10 scènes ≈ 10-15 min. Laisse l'onglet ouvert.</p>
+  <div class="bar"><i id="pg"></i></div>
+  <div id="log"></div>
+</section>
+
+<section class="card">
+  <h2><span class="num">6</span>Ton remake</h2>
+  <div class="stage" id="stage"><canvas id="cv" width="1280" height="720"></canvas></div>
+  <audio id="aud" class="hidden"></audio>
+  <div class="row" style="margin-top:12px">
+    <button id="play" disabled>▶️ Lire le remake</button>
+    <button id="exp" class="ghost" disabled>💾 Exporter la vidéo complète</button>
+  </div>
+  <p class="small" id="expInfo">L'export enregistre le remake complet (avec l'audio d'origine) en temps réel : ça prend autant de temps que la vidéo.</p>
+  <h2 style="font-size:16px;margin:18px 0 8px">⬇️ Télécharger</h2>
+  <button id="dlAll" disabled onclick="dlAllScenes()">⬇️ Télécharger toutes les scènes</button>
+  <div id="dl" class="row" style="margin-top:10px;gap:8px"></div>
+  <p class="small">Sur iPhone : si la vidéo s'ouvre au lieu de se télécharger, touche le bouton Partager → « Enregistrer la vidéo ».</p>
+</section>
+
+</main>
+<script>
+const API='https://apihub.agnes-ai.com';
+const VIDEO_MODEL='agnes-video-2.5', CHAT_MODEL='agnes-2.5-flash', IMG_MODEL='agnes-image-2.1-flash';
+const $=id=>document.getElementById(id);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const S={file:null,url:null,dur:0,scenes:[],cast:'',stop:false,lastVideoCall:0};
+const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+
+/* ---------- clé ---------- */
+$('key').value=store.get('agnesKey')||'';
+$('saveKey').onclick=()=>{store.set('agnesKey',$('key').value.trim());log('Clé enregistrée.')};
+const key=()=>$('key').value.trim();
+
+function log(m){const l=$('log');l.textContent+=`[${new Date().toLocaleTimeString()}] ${m}\n`;l.scrollTop=l.scrollHeight}
+
+/* ---------- import ---------- */
+const drop=$('drop');
+drop.onclick=()=>$('file').click();
+drop.ondragover=e=>{e.preventDefault();drop.classList.add('on')};
+drop.ondragleave=()=>drop.classList.remove('on');
+drop.ondrop=e=>{e.preventDefault();drop.classList.remove('on');if(e.dataTransfer.files[0])load(e.dataTransfer.files[0])};
+$('file').onchange=e=>e.target.files[0]&&load(e.target.files[0]);
+function load(f){
+  S.file=f; if(S.url)URL.revokeObjectURL(S.url); S.url=URL.createObjectURL(f);
+  const v=$('src'); v.src=S.url; $('srcWrap').classList.remove('hidden');
+  v.onloadedmetadata=()=>{S.dur=v.duration;$('srcInfo').textContent=`${f.name} — ${fmt(S.dur)} — ${v.videoWidth}×${v.videoHeight}`;$('analyze').disabled=false;
+    if(v.videoHeight>v.videoWidth)$('ratio').value='9:16';};
+  $('aud').src=S.url;
+}
+const fmt=s=>`${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;
+
+/* ---------- découpage ---------- */
+function seek(v,t){return new Promise(r=>{const h=()=>{v.removeEventListener('seeked',h);r()};v.addEventListener('seeked',h);v.currentTime=Math.min(t,v.duration-0.05)})}
+async function makeProbe(){const v=document.createElement('video');v.src=S.url;v.muted=true;v.playsInline=true;v.preload='auto';
+  await new Promise((r,j)=>{v.onloadeddata=r;v.onerror=()=>j(new Error('Vidéo illisible'))});return v}
+function grab(v,w){const c=document.createElement('canvas');c.width=w;c.height=Math.round(w*v.videoHeight/v.videoWidth);
+  const x=c.getContext('2d');x.drawImage(v,0,0,c.width,c.height);return c}
+
+async function detectScenes(){
+  const v=await makeProbe(), step=0.5, diffs=[]; let prev=null;
+  for(let t=0;t<S.dur;t+=step){
+    await seek(v,t); const d=grab(v,64).getContext('2d').getImageData(0,0,64,36).data;
+    if(prev){let s=0;for(let i=0;i<d.length;i+=4)s+=Math.abs(d[i]-prev[i])+Math.abs(d[i+1]-prev[i+1])+Math.abs(d[i+2]-prev[i+2]);diffs.push({t,v:s/(d.length/4)/3})}
+    prev=d; $('pa').style.width=(t/S.dur*40)+'%';
+  }
+  const vals=diffs.map(d=>d.v),m=vals.reduce((a,b)=>a+b,0)/(vals.length||1),sd=Math.sqrt(vals.reduce((a,b)=>a+(b-m)**2,0)/(vals.length||1));
+  const th=Math.max(m+2.2*sd,14);
+  let cuts=[0,...diffs.filter(d=>d.v>th).map(d=>d.t),S.dur];
+  let seg=[];for(let i=0;i<cuts.length-1;i++)seg.push([cuts[i],cuts[i+1]]);
+  // fusionne les scènes trop courtes (<4 s)
+  let merged=[];for(const s of seg){if(merged.length&&(s[1]-s[0]<4||merged[merged.length-1][1]-merged[merged.length-1][0]<4))merged[merged.length-1][1]=s[1];else merged.push([...s])}
+  // découpe les scènes trop longues (>10 s)
+  let out=[];for(const [a,b] of merged){const n=Math.ceil((b-a)/10);for(let i=0;i<n;i++)out.push([a+(b-a)*i/n,a+(b-a)*(i+1)/n])}
+  // vignettes
+  S.scenes=[];
+  for(let i=0;i<out.length;i++){const [a,b]=out[i],frames=[];
+    for(const p of [.2,.5,.8]){await seek(v,a+(b-a)*p);frames.push(grab(v,448).toDataURL('image/jpeg',.7))}
+    S.scenes.push({start:a,end:b,frames,prompt:'',status:'attente',url:'',keyUrl:''});
+    $('pa').style.width=(40+i/out.length*20)+'%';
+  }
+}
+
+/* ---------- appels IA ---------- */
+async function api(path,body,method='POST'){
+  const r=await fetch(API+path,{method,headers:{'Authorization':'Bearer '+key(),'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});
+  const txt=await r.text(); let j; try{j=JSON.parse(txt)}catch(e){j={raw:txt}}
+  if(!r.ok){const e=new Error((j.error&&(j.error.message||j.error))||j.message||txt.slice(0,200)||r.status);e.status=r.status;throw e}
+  return j;
+}
+async function chat(text,images=[]){
+  const content=[{type:'text',text},...images.map(u=>({type:'image_url',image_url:{url:u}}))];
+  for(let k=0;k<4;k++){try{const j=await api('/v1/chat/completions',{model:CHAT_MODEL,messages:[{role:'user',content}],temperature:.6});
+      return j.choices[0].message.content.trim()}
+    catch(e){if(e.status===429){log('Limite atteinte, pause 20 s…');await sleep(20000)}else throw e}}
+  throw new Error('Trop de tentatives (chat)');
+}
+
+$('analyze').onclick=async()=>{
+  if(!key())return alert('Ajoute ta clé API Agnes (étape 1).');
+  $('analyze').disabled=true;
+  try{
+    log('Découpage en scènes…'); await detectScenes(); log(`${S.scenes.length} scènes trouvées.`);
+    const sample=S.scenes.map(s=>s.frames[1]).filter((_,i,a)=>a.length<=6||i%Math.ceil(a.length/6)===0).slice(0,6);
+    log('Analyse des personnages…');
+    S.cast=await chat(`Voici des images tirées d'une ancienne vidéo (souvent un dessin animé ou une vieille vidéo YouTube). Je veux la refaire en version humaine.
+Identifie chaque personnage récurrent et invente pour lui une version HUMAINE cohérente et précise : sexe, âge, visage, coiffure, tenue, et le décor général.
+${$('castHint').value?'Indications de l\'auteur : '+$('castHint').value:''}
+${$('lyrics').value?'Paroles de la vidéo : '+$('lyrics').value.slice(0,1500):''}
+Réponds en ANGLAIS, en une fiche courte (max 120 mots), format : "CHARACTERS: ... SETTING: ...". Aucune autre phrase.`,sample);
+    $('cast').innerHTML='<b>Fiche personnages :</b> '+esc(S.cast);
+    render();
+    for(let i=0;i<S.scenes.length;i++){
+      const s=S.scenes[i]; s.status='analyse'; render();
+      s.prompt=await chat(`You rewrite one scene of an old video as a prompt for an AI video generator.
+Visual style: ${$('style').value}.
+Keep EXACTLY these characters and setting in every scene: ${S.cast}
+Scene ${i+1}/${S.scenes.length}, ${(s.end-s.start).toFixed(1)} seconds, from ${fmt(s.start)} to ${fmt(s.end)}.
+${$('lyrics').value?'Full dialogue of the video (French) for context: '+$('lyrics').value.slice(0,1500):''}
+The 3 images show the beginning, middle and end of this scene. Describe what happens as a live action shot: who is on screen, actions, facial expressions, who is talking (lips moving), camera framing and movement, lighting. Same composition and timing as the original.
+Output ONLY the prompt, in English, 60-90 words, no title.`,s.frames);
+      s.status='prêt'; render(); $('pa').style.width=(60+(i+1)/S.scenes.length*40)+'%';
+    }
+    log('Analyse terminée. Tu peux modifier les textes des scènes avant de générer.');
+    $('gen').disabled=false; save();
+  }catch(e){log('Erreur : '+e.message);alert('Erreur : '+e.message)}
+  $('analyze').disabled=false;
+};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ---------- rendu des scènes ---------- */
+function render(){
+  const box=$('scenes'); box.innerHTML='';
+  S.scenes.forEach((s,i)=>{
+    const cls=s.status==='terminé'?'ok':s.status.startsWith('erreur')?'err':['génération','analyse','image clé'].includes(s.status)?'run':'';
+    const d=document.createElement('div'); d.className='scene';
+    d.innerHTML=`<div class="thumbs"><img src="${s.keyUrl||s.frames[1]}" alt="Scène ${i+1}"><div class="meta">Scène ${i+1} · ${fmt(s.start)}–${fmt(s.end)} (${(s.end-s.start).toFixed(1)} s)</div></div>
+      <div><div class="row" style="justify-content:space-between"><span class="badge ${cls}">${esc(s.status)}</span>
+      <button class="ghost" style="flex:0 0 auto;padding:6px 10px;font-size:13px" data-i="${i}">↻ Regénérer</button></div>
+      <textarea data-p="${i}">${esc(s.prompt)}</textarea>${s.url?`<video src="${s.url}" controls playsinline muted></video><button class="ghost" style="margin-top:8px;padding:6px 10px;font-size:13px" onclick="dlScene(${i})">⬇️ Télécharger cette scène</button>`:''}</div>`;
+    box.appendChild(d);
+  });
+  box.querySelectorAll('textarea').forEach(t=>t.oninput=()=>{S.scenes[t.dataset.p].prompt=t.value;save()});
+  box.querySelectorAll('button[data-i]').forEach(b=>b.onclick=async()=>{b.disabled=true;await genScene(+b.dataset.i);updateReady()});
+}
+
+/* ---------- génération vidéo ---------- */
+async function waitSlot(){const gap=62000-(Date.now()-S.lastVideoCall);if(gap>0){log(`Pause ${Math.ceil(gap/1000)} s (limite gratuite : 1 vidéo/min)…`);await sleep(gap)}S.lastVideoCall=Date.now()}
+
+async function keyImage(s){
+  try{const j=await api('/v1/images/generations',{model:IMG_MODEL,prompt:`${$('style').value}. ${S.cast}. Still frame: ${s.prompt}`,size:$('ratio').value==='9:16'?'768x1344':$('ratio').value==='1:1'?'1024x1024':'1344x768'});
+    const d=j.data&&j.data[0]; if(!d)return '';
+    return d.url||(d.b64_json?'data:image/png;base64,'+d.b64_json:'');
+  }catch(e){log('Image clé impossible ('+e.message+'), on continue sans.');return ''}
+}
+
+async function genScene(i){
+  const s=S.scenes[i]; if(!key())return alert('Clé API manquante');
+  try{
+    if($('useKey').checked&&!s.keyUrl){s.status='image clé';render();s.keyUrl=await keyImage(s)}
+    s.status='génération';render();
+    const secs=String(Math.min(12,Math.max(4,Math.ceil(s.end-s.start))));
+    const base={model:VIDEO_MODEL,prompt:`${s.prompt} Style: ${$('style').value}. ${$('audioMode').value==='orig'?'Characters talk with natural lip movement.':'Natural ambient sound and voices.'}`,seconds:secs,size:$('size').value,aspect_ratio:$('ratio').value};
+    let job;
+    for(let k=0;k<5;k++){
+      await waitSlot();
+      try{job=await api('/v1/videos',s.keyUrl?{...base,mode:'keyframe',first_frame:s.keyUrl}:{...base,mode:'text'});break}
+      catch(e){
+        if(e.status===429){log('Limite atteinte, nouvelle tentative…');continue}
+        if(s.keyUrl){log(`Scène ${i+1} : image clé refusée, essai en mode texte.`);s.keyUrl='';continue}
+        throw e}
+    }
+    if(!job)throw new Error('Limite de requêtes');
+    const vid=job.video_id||job.id; log(`Scène ${i+1} lancée (${vid}).`);
+    for(let t=0;t<400;t++){
+      if(S.stop)throw new Error('arrêtée');
+      await sleep(3000);
+      let st; try{st=await api(`/agnesapi?video_id=${encodeURIComponent(vid)}&model_name=${VIDEO_MODEL}`,null,'GET')}catch(e){if(e.status===429){await sleep(5000);continue}throw e}
+      const status=st.status||(st.data&&st.data.status);
+      if(status==='completed'){s.url=st.url||(st.data&&st.data.url)||(st.video&&st.video.url);s.status='terminé';log(`Scène ${i+1} prête ✅`);break}
+      if(status==='failed')throw new Error(st.error||st.message||'échec de génération');
+      if(t%5===0&&st.progress!=null){s.status=`génération`;$('pg').title=st.progress+'%'}
+    }
+    if(!s.url)throw new Error('délai dépassé');
+  }catch(e){s.status='erreur : '+e.message;log(`Scène ${i+1} : ${e.message}`)}
+  render();save();
+}
+
+$('gen').onclick=async()=>{
+  S.stop=false;$('gen').disabled=true;$('stop').disabled=false;
+  const todo=S.scenes.map((s,i)=>i).filter(i=>S.scenes[i].status!=='terminé');
+  for(let n=0;n<todo.length;n++){if(S.stop)break;await genScene(todo[n]);$('pg').style.width=((n+1)/todo.length*100)+'%';updateReady()}
+  $('gen').disabled=false;$('stop').disabled=true;log(S.stop?'Arrêté.':'Toutes les scènes sont traitées.');
+};
+$('stop').onclick=()=>{S.stop=true;log('Arrêt demandé…')};
+
+/* ---------- montage ---------- */
+let clips=[];
+function updateReady(){
+  const ok=S.scenes.length&&S.scenes.some(s=>s.url);
+  $('play').disabled=!ok;$('exp').disabled=!ok;
+  $('dlAll').disabled=!ok;
+  $('dl').innerHTML=S.scenes.map((s,i)=>s.url?`<button class="ghost" style="flex:0 0 auto;padding:6px 10px;font-size:13px" onclick="dlScene(${i})">⬇️ Scène ${i+1}</button>`:'').join('');
+}
+async function dlFile(url,name){
+  try{const r=await fetch(url);if(!r.ok)throw 0;const b=await r.blob();const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),60000)}
+  catch(e){window.open(url,'_blank')} // repli : ouvre la vidéo (appui long / ⋯ → Enregistrer)
+}
+function dlScene(i){return dlFile(S.scenes[i].url,`remake-scene-${String(i+1).padStart(2,'0')}.mp4`)}
+async function dlAllScenes(){for(let i=0;i<S.scenes.length;i++)if(S.scenes[i].url){await dlScene(i);await sleep(800)}}
+function prepClips(){
+  clips=S.scenes.map(s=>{if(!s.url)return null;const v=document.createElement('video');v.crossOrigin='anonymous';v.src=s.url;v.muted=$('audioMode').value==='orig';v.playsInline=true;v.preload='auto';return v});
+}
+let playing=false,raf=0;
+async function playMontage(record=false){
+  const cv=$('cv'),cx=cv.getContext('2d'),aud=$('aud');
+  const [rw,rh]=$('ratio').value==='9:16'?[720,1280]:$('ratio').value==='1:1'?[1080,1080]:[1280,720];cv.width=rw;cv.height=rh;
+  prepClips(); await Promise.all(clips.filter(Boolean).map(v=>new Promise(r=>{if(v.readyState>=2)r();else{v.onloadeddata=r;v.onerror=r}})));
+  const useOrig=$('audioMode').value==='orig';
+  let cur=-1; playing=true;
+  const t0=performance.now(), total=S.scenes[S.scenes.length-1].end;
+  if(useOrig){aud.currentTime=0;aud.muted=false;await aud.play().catch(()=>{})}
+  const now=()=>useOrig?aud.currentTime:(performance.now()-t0)/1000;
+  return new Promise(res=>{
+    const tick=()=>{
+      const t=now(); if(!playing||t>=total-0.05){playing=false;clips.forEach(v=>v&&v.pause());aud.pause();res();return}
+      const i=S.scenes.findIndex(s=>t>=s.start&&t<s.end);
+      if(i!==cur){if(cur>=0&&clips[cur])clips[cur].pause();cur=i;const v=clips[i];
+        if(v){const sd=S.scenes[i].end-S.scenes[i].start;v.playbackRate=Math.min(2,Math.max(.5,(v.duration||sd)/sd));v.currentTime=0;v.play().catch(()=>{})}}
+      const v=clips[cur];
+      cx.fillStyle='#000';cx.fillRect(0,0,rw,rh);
+      if(v&&v.readyState>=2){const r=Math.min(rw/v.videoWidth,rh/v.videoHeight),w=v.videoWidth*r,h=v.videoHeight*r;cx.drawImage(v,(rw-w)/2,(rh-h)/2,w,h)}
+      else{cx.fillStyle='#777';cx.font='28px Inter';cx.textAlign='center';cx.fillText(`Scène ${cur+1} pas encore générée`,rw/2,rh/2)}
+      raf=requestAnimationFrame(tick)};
+    tick();
+  });
+}
+$('play').onclick=async()=>{if(playing){playing=false;$('play').textContent='▶️ Lire le remake';return}
+  $('play').textContent='⏸ Stop';await playMontage();$('play').textContent='▶️ Lire le remake'};
+
+let actx,asrc;
+$('exp').onclick=async()=>{
+  const cv=$('cv'),aud=$('aud');
+  try{cv.getContext('2d').getImageData(0,0,1,1)}catch(e){}
+  const stream=cv.captureStream(30);
+  if($('audioMode').value==='orig'){
+    actx=actx||new (window.AudioContext||window.webkitAudioContext)();
+    asrc=asrc||actx.createMediaElementSource(aud);
+    const dest=actx.createMediaStreamDestination();asrc.connect(dest);asrc.connect(actx.destination);
+    dest.stream.getAudioTracks().forEach(t=>stream.addTrack(t));
+  }
+  const mime=['video/mp4;codecs=avc1,mp4a','video/webm;codecs=vp9,opus','video/webm'].find(m=>window.MediaRecorder&&MediaRecorder.isTypeSupported(m));
+  if(!mime)return alert("Ton navigateur ne permet pas l'export. Utilise Chrome sur ordinateur, ou télécharge les scènes une par une.");
+  const rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:6e6}),chunks=[];
+  rec.ondataavailable=e=>e.data.size&&chunks.push(e.data);
+  $('exp').disabled=true;$('expInfo').textContent='Enregistrement en cours… ne change pas d\'onglet.';
+  rec.start(500); await playMontage(true); rec.stop();
+  await new Promise(r=>rec.onstop=r);
+  const blob=new Blob(chunks,{type:mime.split(';')[0]});
+  if(blob.size<5000){$('expInfo').textContent="Export bloqué par le navigateur (sécurité des vidéos distantes). Télécharge les scènes une par une ci-dessous.";$('exp').disabled=false;return}
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='remake.'+(mime.includes('mp4')?'mp4':'webm');a.click();
+  $('expInfo').textContent='Export terminé ✅';$('exp').disabled=false;
+};
+
+/* ---------- sauvegarde légère ---------- */
+function save(){store.set('remakeProject',JSON.stringify({cast:S.cast,scenes:S.scenes.map(s=>({...s,frames:[s.frames[1]]}))}))}
+(function restore(){try{const p=JSON.parse(store.get('remakeProject')||'null');if(p&&p.scenes&&p.scenes.length){S.cast=p.cast;S.scenes=p.scenes.map(s=>({...s,frames:[s.frames[0],s.frames[0],s.frames[0]],status:s.url?'terminé':(s.status==='terminé'?'prêt':s.status.startsWith('erreur')?s.status:'prêt')}));
+  $('cast').innerHTML=S.cast?'<b>Fiche personnages :</b> '+esc(S.cast)+' <span class="small">(projet précédent restauré — réimporte la vidéo pour l\'audio d\'origine)</span>':'';render();$('gen').disabled=false;updateReady()}}catch(e){}})();
+</script>
+</body>
+</html>
