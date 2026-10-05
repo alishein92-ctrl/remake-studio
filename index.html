@@ -136,7 +136,7 @@ video{width:100%;border-radius:12px;background:#000;display:block}
 </main>
 <script>
 const API='https://apihub.agnes-ai.com';
-const VIDEO_MODEL='agnes-video-2.5', CHAT_MODEL='agnes-2.5-flash', IMG_MODEL='agnes-image-2.1-flash';
+const VIDEO_MODEL='agnes-video-2.5-flash', CHAT_MODEL='agnes-2.5-flash', IMG_MODEL='agnes-image-2.1-flash';
 const $=id=>document.getElementById(id);
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const S={file:null,url:null,dur:0,scenes:[],cast:'',stop:false,lastVideoCall:0};
@@ -275,7 +275,7 @@ async function genScene(i){
     if($('useKey').checked&&!s.keyUrl){s.status='image clé';render();s.keyUrl=await keyImage(s)}
     s.status='génération';render();
     const secs=String(Math.min(12,Math.max(4,Math.ceil(s.end-s.start))));
-    const base={model:VIDEO_MODEL,prompt:`${s.prompt} Style: ${$('style').value}. ${$('audioMode').value==='orig'?'Characters talk with natural lip movement.':'Natural ambient sound and voices.'}`,seconds:secs,size:$('size').value,aspect_ratio:$('ratio').value};
+    const base={model:VIDEO_MODEL,prompt:`${s.prompt} Style: ${$('style').value}. ${$('audioMode').value==='orig'?'Characters talk with natural lip movement.':'Natural ambient sound and voices.'}`,seconds:secs,size:'720P',aspect_ratio:$('ratio').value};
     let job;
     for(let k=0;k<5;k++){
       await waitSlot();
