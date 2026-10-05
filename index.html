@@ -67,6 +67,8 @@ video{width:100%;border-radius:12px;background:#000;display:block}
   <h2><span class="num">2</span>Vidéo d'origine</h2>
   <div class="drop" id="drop">📼 Clique ou glisse ta vidéo ici (MP4, MOV, WebM — idéal : 30 s à 2 min)</div>
   <input type="file" id="file" accept="video/*" class="hidden">
+  <div class="row" style="margin-top:12px"><span class="small">Pas de vidéo ? Pars d'un sketch déjà écrit :</span>
+    <button class="ghost" style="flex:0 0 auto" onclick="loadSketch('divorce')">📜 Sketch « 1,90 € »</button></div>
   <div id="srcWrap" class="hidden" style="margin-top:12px">
     <video id="src" controls playsinline></video>
     <p class="small" id="srcInfo"></p>
@@ -247,7 +249,7 @@ function render(){
   S.scenes.forEach((s,i)=>{
     const cls=s.status==='terminé'?'ok':s.status.startsWith('erreur')?'err':['génération','analyse','image clé'].includes(s.status)?'run':'';
     const d=document.createElement('div'); d.className='scene';
-    d.innerHTML=`<div class="thumbs"><img src="${s.keyUrl||s.frames[1]}" alt="Scène ${i+1}"><div class="meta">Scène ${i+1} · ${fmt(s.start)}–${fmt(s.end)} (${(s.end-s.start).toFixed(1)} s)</div></div>
+    d.innerHTML=`<div class="thumbs">${(s.keyUrl||s.frames[1])?`<img src="${s.keyUrl||s.frames[1]}" alt="Scène ${i+1}">`:`<div style="aspect-ratio:9/16;max-height:200px;border-radius:8px;background:#0f0f19;display:grid;place-items:center;font-size:32px">🎬</div>`}<div class="meta">Scène ${i+1} · ${fmt(s.start)}–${fmt(s.end)} (${(s.end-s.start).toFixed(1)} s)</div></div>
       <div><div class="row" style="justify-content:space-between"><span class="badge ${cls}">${esc(s.status)}</span>
       <button class="ghost" style="flex:0 0 auto;padding:6px 10px;font-size:13px" data-i="${i}">↻ Regénérer</button></div>
       <textarea data-p="${i}">${esc(s.prompt)}</textarea>${s.url?`<video src="${s.url}" controls playsinline muted></video><button class="ghost" style="margin-top:8px;padding:6px 10px;font-size:13px" onclick="dlScene(${i})">⬇️ Télécharger cette scène</button>`:''}</div>`;
@@ -328,7 +330,9 @@ let playing=false,raf=0;
 async function playMontage(record=false){
   const cv=$('cv'),cx=cv.getContext('2d'),aud=$('aud');
   const [rw,rh]=$('ratio').value==='9:16'?[720,1280]:$('ratio').value==='1:1'?[1080,1080]:[1280,720];cv.width=rw;cv.height=rh;
-  prepClips(); await Promise.all(clips.filter(Boolean).map(v=>new Promise(r=>{if(v.readyState>=2)r();else{v.onloadeddata=r;v.onerror=r}})));
+  prepClips();
+  if(record&&$('audioMode').value!=='orig'&&window.__aiDest){clips.forEach(v=>{if(!v)return;try{const n=actx.createMediaElementSource(v);n.connect(window.__aiDest);n.connect(actx.destination)}catch(e){}})}
+  await Promise.all(clips.filter(Boolean).map(v=>new Promise(r=>{if(v.readyState>=2)r();else{v.onloadeddata=r;v.onerror=r}})));
   const useOrig=$('audioMode').value==='orig';
   let cur=-1; playing=true;
   const t0=performance.now(), total=S.scenes[S.scenes.length-1].end;
@@ -361,6 +365,10 @@ $('exp').onclick=async()=>{
     asrc=asrc||actx.createMediaElementSource(aud);
     const dest=actx.createMediaStreamDestination();asrc.connect(dest);asrc.connect(actx.destination);
     dest.stream.getAudioTracks().forEach(t=>stream.addTrack(t));
+  }else{ // son généré par l'IA : on capte l'audio de chaque scène
+    actx=actx||new (window.AudioContext||window.webkitAudioContext)();
+    window.__aiDest=actx.createMediaStreamDestination();
+    window.__aiDest.stream.getAudioTracks().forEach(t=>stream.addTrack(t));
   }
   const mime=['video/mp4;codecs=avc1,mp4a','video/webm;codecs=vp9,opus','video/webm'].find(m=>window.MediaRecorder&&MediaRecorder.isTypeSupported(m));
   if(!mime)return alert("Ton navigateur ne permet pas l'export. Utilise Chrome sur ordinateur, ou télécharge les scènes une par une.");
@@ -374,6 +382,28 @@ $('exp').onclick=async()=>{
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='remake.'+(mime.includes('mp4')?'mp4':'webm');a.click();
   $('expInfo').textContent='Export terminé ✅';$('exp').disabled=false;
 };
+
+/* ---------- sketchs prêts à générer (sans vidéo d'origine) ---------- */
+const SKETCHES={divorce:{
+  style:'photorealistic live-action French comedy sitcom, real human actors, bright warm lighting',
+  cast:'CHARACTERS: CAMILLE, daughter, early 30s, long brown wavy hair, elegant beige trench coat, gold earrings, mascara slightly smudged from crying. MAMAN, her mother, early 60s, gray hair in a bun, reading glasses on a chain, burgundy cardigan, expressive face. SETTING: cozy French apartment living room, floral sofa, coffee table with a teapot, afternoon sunlight.',
+  scenes:[
+   [6,'The doorbell rings; MAMAN opens the front door and warmly hugs CAMILLE, who looks sad and holds back tears. CAMILLE says in French, voice trembling: "Maman... j\'ai une chose douloureuse à t\'annoncer." Medium shot, slow push-in.'],
+   [6,'On the floral sofa, CAMILLE holds a tissue, eyes wet, and says in French: "Je vais divorcer." MAMAN freezes, teacup stopped halfway to her mouth, completely stunned. Two-shot, then quick close-up on MAMAN\'s shocked face.'],
+   [8,'MAMAN puts the teacup down and leans toward CAMILLE, baffled, gesturing with both hands, and says in French: "Mais pourquoi, ma fille ? Ton mari est riche, il t\'offre tout ce que tu veux, il te donne tout !" Over-the-shoulder shot on MAMAN.'],
+   [10,'CAMILLE looks down, deeply embarrassed, fidgeting with her tissue, then leans close and whispers in French: "C\'est dur à dire... Quand on s\'est mariés, j\'avais le trou de balle comme une pièce de dix centimes." She shows a tiny circle with her thumb and index finger. Close-up on CAMILLE, comedic timing.'],
+   [8,'CAMILLE continues in French, making a bigger circle with her fingers: "Et après deux ans de mariage... il est comme une pièce de deux euros." MAMAN listens with a totally blank, deadpan expression, slowly raising one eyebrow. Two-shot.'],
+   [8,'MAMAN throws her hands up in the air, exasperated, and says in French: "Ma fille, tu me fais tout ce tralala... Tu veux divorcer pour un euro quatre-vingt-dix ?!" CAMILLE stares at her, speechless, mouth open. Comedic punchline, quick zoom on MAMAN, sitcom style.']
+  ]}};
+function loadSketch(id){
+  const k=SKETCHES[id]; let t=0;
+  S.cast=k.cast; $('style').value=k.style; $('audioMode').value='ai'; $('ratio').value='9:16'; $('useKey').checked=true;
+  S.scenes=k.scenes.map(([d,p])=>{const s={start:t,end:t+d,frames:['','',''],prompt:p,status:'prêt',url:'',keyUrl:''};t+=d;return s});
+  $('cast').innerHTML='<b>Fiche personnages :</b> '+esc(S.cast);
+  render(); $('gen').disabled=false; updateReady(); save();
+  log(`Sketch chargé : ${S.scenes.length} scènes, ${t} s au total. Clique sur « Générer toutes les scènes ».`);
+  $('gen').scrollIntoView({behavior:'smooth',block:'center'});
+}
 
 /* ---------- sauvegarde légère ---------- */
 function save(){store.set('remakeProject',JSON.stringify({cast:S.cast,scenes:S.scenes.map(s=>({...s,frames:[s.frames[1]]}))}))}
